@@ -1,0 +1,40 @@
+--find revenue, revenue from mobile and revenue from desktop by continent
+with revenue_usd as(
+SELECT sp.continent,
+       sum(pr.price) as revenue,
+       sum(case when sp.device = 'mobile' then pr.price end) as revenue_mobile,
+       sum(case when sp.device = 'desktop' then pr.price end) as revenue_desktop
+FROM `data-analytics-mate.DA.order` o
+join `data-analytics-mate.DA.product` pr
+on o.item_id = pr.item_id
+join `data-analytics-mate.DA.session_params` sp
+on o.ga_session_id = sp.ga_session_id
+group by sp.continent),
+
+
+--find number of accounts, verified accounts and sessions by continents
+account_usd as(
+select sp.continent,
+       count(acs.account_id) as account_cnt,
+       count(a.is_verified) as verified_cnt,
+       count(sp.ga_session_id) as session_cnt
+from `data-analytics-mate.DA.session_params` sp
+left join `data-analytics-mate.DA.account_session` acs
+on sp.ga_session_id = acs.ga_session_id
+left join `data-analytics-mate.DA.account` a
+on acs.account_id = a.id
+group by sp.continent
+)
+
+
+select account_usd.continent,
+       revenue_usd.revenue,
+       revenue_usd.revenue_mobile,
+       revenue_usd.revenue_desktop,
+       revenue_usd.revenue / sum(revenue_usd.revenue) over() * 100 as revenue_percent,
+       account_usd.account_cnt,
+       account_usd.verified_cnt,
+       account_usd.session_cnt
+from account_usd
+left join revenue_usd
+on account_usd.continent = revenue_usd.continent
